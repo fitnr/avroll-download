@@ -1,4 +1,5 @@
-ZIP = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
+AVROLLZIP = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
+
 DATABASE = avroll
 PASS = 
 MYSQL = mysql --user="$(USER)" -p$(PASS) --database="$(DATABASE)"
@@ -33,7 +34,7 @@ AVROLL.mdb: AVROLL.zip
 	@touch $@
 
 .INTERMEDIATE: AVROLL.zip
-AVROLL.zip: ; curl $(ZIP) > $@
+AVROLL.zip: ; curl $(AVROLLZIP) > $@
 
 clean: ; $(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);"
 
