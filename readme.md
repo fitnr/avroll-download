@@ -46,6 +46,11 @@ If you want to add the data to tables in an existing database, run:
 $ make DATABASE=mydb USER=myuser PASS=mypass
 ````
 
+If you're really special, something like this will work:
+````
+$ make DATABASE=mydb USER=myuser PASS=mypass SQLFLAGS='--host=example.com --port=123'
+````
+
 ## License
 
 [General Public License version 3](https://www.gnu.org/licenses/gpl.html)

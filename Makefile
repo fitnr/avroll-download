@@ -18,7 +18,7 @@
 AVROLL = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
 
 DATABASE = avroll
-MYSQL = mysql --user="$(USER)" -p$(PASS)
+MYSQL = mysql --user="$(USER)" -p$(PASS) $(MYSQLFLAGS)
 
 .PHONY: mysql
 mysql: schema.sql avroll.csv description.csv
