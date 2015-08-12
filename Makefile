@@ -18,15 +18,17 @@
 AVROLL = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
 
 DATABASE = avroll
-MYSQL = mysql --user="$(USER)" -p$(PASS) --database="$(DATABASE)"
+MYSQL = mysql --user="$(USER)" -p$(PASS)
 
 .PHONY: mysql
 mysql: schema.sql avroll.csv description.csv
 	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE)"
 
-	$(MYSQL) --execute "DROP TABLE IF EXISTS avroll; DROP TABLE IF EXISTS Description;"
+	$(MYSQL) --execute "DROP TABLE IF EXISTS $(DATABASE).avroll; DROP TABLE IF EXISTS $(DATABASE).Description;"
 
-	$(MYSQL) < $<
+	$(MYSQL) --database $(DATABASE) < $<
+
+	$(MYSQL) --execute "ALTER TABLE $(DATABASE).avroll ADD INDEX BBLE (BBLE)"
 
 	$(MYSQL) --execute="LOAD DATA LOCAL INFILE '$(word 2,$^)' INTO TABLE $(DATABASE).avroll \
 	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' LINES TERMINATED BY '\n' IGNORE 1 LINES"
@@ -37,6 +39,7 @@ mysql: schema.sql avroll.csv description.csv
 description.csv: AVROLL.mdb
 	mdb-export $< 'Condensed Roll Description' > $@
 
+# Escape silly trailing slashes in the data set
 avroll.csv: AVROLL.mdb
 	mdb-export $< avroll | \
 	sed -e 's/\\/\\\\/g' > $@
