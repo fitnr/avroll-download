@@ -14,7 +14,9 @@ The NYC Department of Finance makes assessed value data available as a Microsoft
 
 Download this repository and open the folder in your terminal.
 
-If you have Homebrew installed, run 
+You'll have to install [mysql](http://www.mysql.com/downloads/) yourself.
+
+Next, you'll need to install mdbtools. If you're on OS X with Homebrew installed run:
 ````
 $ make install
 ````
@@ -46,9 +48,9 @@ If you want to add the data to tables in an existing database, run:
 $ make DATABASE=mydb USER=myuser PASS=mypass
 ````
 
-If you're really special, something like this will work:
+If you're using a remote database, something like this will work:
 ````
-$ make DATABASE=mydb USER=myuser PASS=mypass SQLFLAGS='--host=example.com --port=123'
+$ make DATABASE=mydb USER=myuser PASS=mypass MYSQLFLAGS='--host=example.com --port=123'
 ````
 
 ## License
