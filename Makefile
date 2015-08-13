@@ -20,21 +20,23 @@ AVROLL = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
 DATABASE = avroll
 MYSQL = mysql --user="$(USER)" -p$(PASS) $(MYSQLFLAGS)
 
-.PHONY: mysql
-mysql: schema.sql avroll.csv description.csv
-	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE)"
+.PHONY: all mysql description.mysql avroll.mysql
 
-	$(MYSQL) --execute "DROP TABLE IF EXISTS $(DATABASE).avroll; DROP TABLE IF EXISTS $(DATABASE).Description;"
+all: description avroll
+
+description avroll: %: %.csv | mysql
+	$(MYSQL) --execute="LOCK TABLES $(DATABASE).$* WRITE; \
+	LOAD DATA LOCAL INFILE '$<' INTO TABLE $(DATABASE).$* \
+	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' LINES TERMINATED BY '\n' IGNORE 1 LINES; \
+	UNLOCK TABLES;"
+
+mysql: schema.sql
+	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE); \
+	DROP TABLE IF EXISTS $(DATABASE).avroll; \
+	DROP TABLE IF EXISTS $(DATABASE).description;"
 
 	$(MYSQL) --database $(DATABASE) < $<
-
-	$(MYSQL) --execute "ALTER TABLE $(DATABASE).avroll ADD INDEX BBLE (BBLE)"
-
-	$(MYSQL) --execute="LOAD DATA LOCAL INFILE '$(word 2,$^)' INTO TABLE $(DATABASE).avroll \
-	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' LINES TERMINATED BY '\n' IGNORE 1 LINES"
-
-	$(MYSQL) --execute="LOAD DATA LOCAL INFILE '$(word 3,$^)' INTO TABLE $(DATABASE).Description \
-	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' LINES TERMINATED BY '\n' IGNORE 1 LINES"
+	$(MYSQL) --execute "ALTER TABLE $(DATABASE).avroll ADD INDEX BBLE (BBLE);"
 
 description.csv: AVROLL.mdb
 	mdb-export $< 'Condensed Roll Description' > $@
@@ -46,7 +48,7 @@ avroll.csv: AVROLL.mdb
 
 schema.sql: AVROLL.mdb
 	mdb-schema $< mysql | \
-	sed 's/Condensed Roll Description/Description/g' > $@
+	sed 's/Condensed Roll Description/description/g' > $@
 
 AVROLL.mdb: AVROLL.zip
 	unzip $< $@
