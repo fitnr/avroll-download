@@ -17,39 +17,58 @@
 
 AVROLL = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
 
+DB = mysql
 DATABASE = avroll
+
 PASSFLAG = -p
+
 MYSQL = mysql --user="$(USER)" $(PASSFLAG)$(PASS) $(MYSQLFLAGS)
+SQLITE = sqlite3 $(SQLITEFLAGS)
 
-.PHONY: all mysql description.mysql avroll.mysql
+IMPORTFLAGS = FIELDS TERMINATED BY ',' \
+	OPTIONALLY ENCLOSED BY '\"' \
+	LINES TERMINATED BY '\n' \
+	IGNORE 1 LINES
 
-all: description avroll
+.PHONY: all mysql sqlite check-%
 
-description avroll: %: %.csv | mysql
-	$(MYSQL) --execute="LOCK TABLES $(DATABASE).$* WRITE; \
-	LOAD DATA LOCAL INFILE '$<' INTO TABLE $(DATABASE).$* \
-	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' LINES TERMINATED BY '\n' IGNORE 1 LINES; \
-	UNLOCK TABLES;"
+all: avroll.csv
 
-mysql: schema.sql
-	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE); \
-	DROP TABLE IF EXISTS $(DATABASE).avroll; \
-	DROP TABLE IF EXISTS $(DATABASE).description;"
+sqlite: $(DATABASE).db
 
-	$(MYSQL) --database $(DATABASE) < $<
-	$(MYSQL) --execute "ALTER TABLE $(DATABASE).avroll ADD INDEX BBLE (BBLE);"
+$(DATABASE).db: schema-sqlite.sql description.csv avroll.csv
+	$(SQLITE) $@ < $<
+	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON avroll (BBLE);"
+
+	tail -n+2 description.csv | $(SQLITE) $@ -separator , ".import /dev/stdin description"
+
+	tail -n+2 $(lastword $^) | $(SQLITE) $@ -separator , '.import /dev/stdin avroll'
+
+
+mysql: schema-mysql.sql description.csv avroll.csv
+	$(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);"
+	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
+	$(MYSQL) $(DATABASE) --execute="DROP TABLE IF EXISTS avroll; DROP TABLE IF EXISTS description;"
+
+	$(MYSQL) $(DATABASE) < $<
+	$(MYSQL) $(DATABASE) --execute "ALTER TABLE avroll ADD INDEX BBLE (BBLE);"
+
+	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE 'description.csv' INTO TABLE description \
+	$(IMPORTFLAGS);"
+
+	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE 'avroll.csv' INTO TABLE avroll \
+	$(IMPORTFLAGS);"
 
 description.csv: AVROLL.mdb
-	mdb-export $< 'Condensed Roll Description' > $@
+	mdb-export $(EXPORTFLAGS) $< 'Condensed Roll Description' > $@
 
 # Escape silly trailing slashes in the data set
 avroll.csv: AVROLL.mdb
-	mdb-export $< avroll | \
+	mdb-export $(EXPORTFLAGS) $< avroll | \
 	sed -e 's/\\/\\\\/g' > $@
 
-schema.sql: AVROLL.mdb
-	mdb-schema $< mysql | \
-	sed 's/Condensed Roll Description/description/g' > $@
+schema-sqlite.sql schema-mysql.sql: schema-%.sql: AVROLL.mdb
+	mdb-schema $< $* | sed 's/Condensed Roll Description/description/g' > $@
 
 AVROLL.mdb: AVROLL.zip
 	unzip -o $< $@
@@ -58,7 +77,18 @@ AVROLL.mdb: AVROLL.zip
 .INTERMEDIATE: AVROLL.zip
 AVROLL.zip: ; curl --location --silent --output $@ $(AVROLL)
 
-clean: ; $(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);"
+clean:
+	rm -f $(TARGET)
+	$(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);" || :
+	rm -f description.csv avroll.{zip,mdb,csv} schema.sql
+
+check-sqlite: $(DATABASE).db
+	$(SQLITE) $< 'select * FROM avroll limit 10'
+	$(SQLITE) $< 'select * FROM description'
+
+check-mysql:
+	$(MYSQL) -D $(DATABASE) -e 'SELECT * FROM avroll LIMIT 10'
+	$(MYSQL) -D $(DATABASE) -e 'SELECT * FROM description'
 
 .PHONY: install
 install:
