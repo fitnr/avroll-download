@@ -51,11 +51,11 @@ schema.sql: AVROLL.mdb
 	sed 's/Condensed Roll Description/description/g' > $@
 
 AVROLL.mdb: AVROLL.zip
-	unzip $< $@
+	unzip -o $< $@
 	@touch $@
 
 .INTERMEDIATE: AVROLL.zip
-AVROLL.zip: ; curl $(AVROLL) > $@
+AVROLL.zip: ; curl --location --silent --output $@ $(AVROLL)
 
 clean: ; $(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);"
 
