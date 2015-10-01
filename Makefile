@@ -18,7 +18,8 @@
 AVROLL = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
 
 DATABASE = avroll
-MYSQL = mysql --user="$(USER)" -p$(PASS) $(MYSQLFLAGS)
+PASSFLAG = -p
+MYSQL = mysql --user="$(USER)" $(PASSFLAG)$(PASS) $(MYSQLFLAGS)
 
 .PHONY: all mysql description.mysql avroll.mysql
 
@@ -60,4 +61,16 @@ AVROLL.zip: ; curl --location --silent --output $@ $(AVROLL)
 clean: ; $(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);"
 
 .PHONY: install
-install: ; which brew && brew install mdbtools || $(SHELL) ./install-mdbtools.sh
+install:
+	( \
+		which brew && brew install mdbtools \
+	) || ( \
+		git clone https://github.com/brianb/mdbtools.git && \
+		cd mdbtools && \
+		sudo apt-get -qq install -y gnome-doc-utils glib2.0-dev && \
+		autoreconf -i -f && \
+		./configure --disable-man && \
+		make && \
+		sudo make install && \
+		sudo ldconfig \
+	)

@@ -1,0 +1,7 @@
+sudo: true
+
+install:
+ - make install
+
+script:
+ - make USER=root PASSFLAG=
