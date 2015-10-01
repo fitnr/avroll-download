@@ -60,4 +60,4 @@ AVROLL.zip: ; curl $(AVROLL) > $@
 clean: ; $(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);"
 
 .PHONY: install
-install: ; brew install mdbtools
+install: ; which brew && brew install mdbtools || $(SHELL) ./install-mdbtools.sh
