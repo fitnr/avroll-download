@@ -13,6 +13,9 @@ install:
   - if [[ $TRAVIS_OS_NAME == "osx" && $DB == "mysql" ]]; then brew install mysql && mysql.server start; fi
   - make install
 
+before_script:
+ - sqlite3 -version
+
 script:
  - make avroll.csv
  - head -n 800000 avroll.csv > avroll1.csv && mv avroll1.csv avroll.csv
@@ -21,4 +24,6 @@ script:
 
 matrix:
   allow_failures:
-    - env: DB=sqlite
+    -
+        env: DB=sqlite
+        os: linux
