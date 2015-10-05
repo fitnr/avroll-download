@@ -15,7 +15,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AVROLL = https://data.cityofnewyork.us/download/rgy2-tti8/application/zip
+FY_2016 = avroll_16
+FY_2015 = avroll_15
+FY_2014 = avroll_14
+FY_2013 = avroll_13
+FY_2012 = avroll_12
+FY_2011 = avroll_11
+FY_2010 = all_10
+
+BASE = http://www1.nyc.gov/assets/finance/downloads/tar
+YEAR = $(FY_2016)
+
+AVROLL = $(BASE)/$(YEAR).zip
 
 DB = mysql
 DATABASE = avroll
@@ -32,50 +43,48 @@ IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 
 .PHONY: all mysql sqlite check-%
 
-all: avroll.csv
+all: $(YEAR).csv
 
 sqlite: $(DATABASE).db
 
-$(DATABASE).db: schema-sqlite.sql description.csv avroll.csv
+$(DATABASE).db: schema-sqlite.sql description.csv $(YEAR).csv
 	$(SQLITE) $@ < $<
-	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON avroll (BBLE);"
+	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR) (BBLE);"
 
-	tail -n+2 description.csv | $(SQLITE) $@ -separator , ".import /dev/stdin description"
+	tail -n+2 description.csv | $(SQLITE) $@ -separator ',' ".import /dev/stdin description"
 
-	tail -n+2 $(lastword $^) | $(SQLITE) $@ -separator , '.import /dev/stdin avroll'
+	tail -n+2 $(lastword $^) | $(SQLITE) $@ -separator ',' '.import /dev/stdin $(YEAR)'
 
-
-mysql: schema-mysql.sql description.csv avroll.csv
-	$(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);"
+mysql: schema-mysql.sql description.csv $(YEAR).csv
 	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
-	$(MYSQL) $(DATABASE) --execute="DROP TABLE IF EXISTS avroll; DROP TABLE IF EXISTS description;"
+	$(MYSQL) $(DATABASE) --execute="DROP TABLE IF EXISTS $(YEAR); DROP TABLE IF EXISTS description;"
 
 	$(MYSQL) $(DATABASE) < $<
-	$(MYSQL) $(DATABASE) --execute "ALTER TABLE avroll ADD INDEX BBLE (BBLE);"
+	$(MYSQL) $(DATABASE) --execute "ALTER TABLE $(YEAR) ADD INDEX BBLE (BBLE);"
 
 	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE 'description.csv' INTO TABLE description \
 	$(IMPORTFLAGS);"
 
-	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE 'avroll.csv' INTO TABLE avroll \
+	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$(lastword $<)' INTO TABLE $(YEAR) \
 	$(IMPORTFLAGS);"
 
-description.csv: AVROLL.mdb
+description.csv: $(YEAR).mdb
 	mdb-export $(EXPORTFLAGS) $< 'Condensed Roll Description' > $@
 
 # Escape silly trailing slashes in the data set
-avroll.csv: AVROLL.mdb
+$(YEAR).csv: $(YEAR).mdb
 	mdb-export $(EXPORTFLAGS) $< avroll | \
 	sed -e 's/\\/\\\\/g' > $@
 
-schema-sqlite.sql schema-mysql.sql: schema-%.sql: AVROLL.mdb
-	mdb-schema $< $* | sed 's/Condensed Roll Description/description/g' > $@
+schema-sqlite.sql schema-mysql.sql: schema-%.sql: $(YEAR).mdb
+	mdb-schema $< $* | \
+	sed -e 's/\(CREATE TABLE\) .avroll./\1 $(YEAR)/g' | \
+	sed -e 's/Condensed Roll Description/description/g' > $@
 
-AVROLL.mdb: AVROLL.zip
-	unzip -o $< $@
-	@touch $@
+$(YEAR).mdb: $(YEAR).zip; unzip -p $< '*.mdb' > $@
 
-.INTERMEDIATE: AVROLL.zip
-AVROLL.zip: ; curl --location --silent --output $@ $(AVROLL)
+.INTERMEDIATE: $(YEAR).zip
+$(YEAR).zip: ; curl --location --progress-bar --output $@ $(AVROLL)
 
 clean:
 	rm -f $(TARGET)

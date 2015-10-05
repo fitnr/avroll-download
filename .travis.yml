@@ -17,10 +17,13 @@ before_script:
  - sqlite3 -version
 
 script:
- - make avroll.csv
- - head -n 800000 avroll.csv > avroll1.csv && mv avroll1.csv avroll.csv
- - head -n 12 avroll.csv
+ - make
+ - head -n 800000 avroll_16.csv > _.csv && mv _.csv avroll_16.csv
+ - head -n 12 avroll_16.csv
+ - make schema-mysql.sql
+ - head -n 13 schema-mysql.sql
  - make $DB USER=root PASSFLAG=
+ - make $DB YEAR=all_10 USER=root PASSFLAG=
 
 matrix:
   allow_failures:
