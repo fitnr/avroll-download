@@ -69,12 +69,16 @@ all: $(YEAR).csv $(YEAR)_condensed.csv
 #
 # SQLite
 #
-sqlite: sqlite-TC1 sqlite-TC2 sqlite-description sqlite-condensed | $(DATABASE).db
+sqlite: sqlite-complete sqlite-condensed
+
+sqlite-condensed: sqlite-description-load sqlite-condensed-load
+
+sqlite-complete: sqlite-TC1 sqlite-TC2
 
 sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
 	$(SQLITE) $(SQLITEFLAGS) $| -separator , ".import $< $(YEAR)"
 
-sqlite-description sqlite-condensed: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
+sqlite-description-load sqlite-condensed-load: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
 	$(SQLITE) $(SQLITEFLAGS) $| -separator , ".import $< $(YEAR)_$*"
 
 $(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
@@ -87,11 +91,11 @@ $(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
 #
 # MySQL
 #
-complete: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2
+mysql: mysql-complete mysql-condensed
 
-condensed: mysql-$(YEAR)-condensed
+mysql-complete: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2
 
-mysql: complete condensed
+mysql-condensed: mysql-$(YEAR)-condensed
 
 mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YEAR)
 	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --local-infile --execute "LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
