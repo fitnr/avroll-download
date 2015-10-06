@@ -65,6 +65,9 @@ IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 
 all: $(YEAR).csv $(YEAR)_condensed.csv
 
+#
+# SQLite
+#
 sqlite: sqlite-TC1 sqlite-TC2 sqlite-description sqlite-condensed | $(DATABASE).db
 
 sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
@@ -78,13 +81,16 @@ $(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
 	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR) (BBLE);"
 
 	$(SQLITE) $@ < $(lastword $^)
-	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR)_condensed (BBLE);"
+	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bblec ON $(YEAR)_condensed (BBLE);"
 
+#
+# MySQL
+#
 complete: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2
 
 condensed: mysql-$(YEAR)-condensed
 
-mysql: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2 mysql-$(YEAR)-condensed
+mysql: complete condensed
 
 mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YEAR)
 	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
@@ -108,6 +114,9 @@ mysql-$(YEAR)-condensed-load: schemas/mysql_$(YEAR)_condensed.sql | mysql-create
 mysql-create:
 	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
 
+#
+# CSV
+#
 $(YEAR).csv: $(YEAR)_TC2.csv $(YEAR)_TC1.csv
 	head -n1 $< > $@ 
 	{ $(foreach file,$^,tail -n+2 $(file) ;) } >> $@
@@ -124,6 +133,9 @@ $(YEAR)_description.csv: $(YEAR)_condensed.mdb
 $(YEAR)_condensed.csv: $(YEAR)_condensed.mdb
 	mdb-export -H $(EXPORTFLAGS) $< avroll > $@
 
+#
+# SQL schemas
+#
 schemas/mysql_$(YEAR).sql schemas/sqlite_$(YEAR).sql: schemas/%_$(YEAR).sql: $(YEAR)_TC1.mdb | schemas
 	mdb-schema -T tc1 $< $* | sed -e 's/.tc1./$(YEAR)/g' > $@
 
@@ -134,14 +146,23 @@ schemas/mysql_$(YEAR)_condensed.sql schemas/sqlite_$(YEAR)_condensed.sql: schema
 
 schemas: ; mkdir -p $@
 
+#
+# mdb
+#
 $(YEAR)_TC1.mdb $(YEAR)_TC2.mdb $(YEAR)_condensed.mdb: $(YEAR)_%.mdb: $(YEAR)_%.zip
 	unzip -p $< '*.mdb' > $@
 
 .INTERMEDIATE: $(YEAR)_TC1.zip $(YEAR)_TC2.zip $(YEAR)_condensed.zip
 
+#
+# zip
+#
 $(YEAR)_TC1.zip $(YEAR)_TC2.zip $(YEAR)_condensed.zip: $(YEAR)_%.zip:
 	curl --location --progress-bar --output $@ $(BASE)/$($(YEAR)_$*).zip
 
+#
+# utilities
+#
 clean:
 	rm -f $(TARGET)
 	$(MYSQL) --execute "DROP DATABASE IF EXISTS $(DATABASE);" || :
