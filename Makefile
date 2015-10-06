@@ -68,7 +68,13 @@ IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 
 .PHONY: all mysql mysql-% postgresql postgresql-% sqlite sqlite-% check-% complete condensed
 
-all: $(YEAR).csv $(YEAR)_condensed.csv
+all: complete condensed
+
+complete: $(YEAR).csv
+	@echo *** downloaded $(YEAR).csv
+
+condensed: $(YEAR)_condensed.csv
+	@echo *** downloaded $(YEAR)_condensed.csv
 
 #
 # SQLite
@@ -82,10 +88,10 @@ sqlite-complete: sqlite-TC1 sqlite-TC2
 sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
 	$(SQLITE) $(SQLITEFLAGS) $| -separator , ".import $< $(YEAR)"
 
-sqlite-description-load sqlite-condensed-load: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
+sqlite-description-load sqlite-condensed-load: sqlite-%-load: $(YEAR)_%.csv | $(DATABASE).db
 	$(SQLITE) $(SQLITEFLAGS) $| -separator , ".import $< $(YEAR)_$*"
 
-$(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
+$(DATABASE).db: sqlite_$(YEAR)_tc.sql sqlite_$(YEAR)_condensed.sql
 	$(SQLITE) $(SQLITEFLAGS) $@ < $<
 	$(SQLITE) $(SQLITEFLAGS) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR) (BBLE);"
 
@@ -120,10 +126,12 @@ posgresql-create:
 mysql: mysql-complete mysql-condensed
 
 mysql-complete: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR) ADD INDEX BBLE (BBLE);"
 
 mysql-condensed: mysql-$(YEAR)-condensed
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR)_condensed ADD INDEX BBLE (BBLE);"
 
-mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YEAR)
+mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YEAR)-tc-load
 	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --local-infile --execute "LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
 	$(IMPORTFLAGS);"
 
@@ -134,13 +142,8 @@ mysql-$(YEAR)-condensed: $(YEAR)_description.csv $(YEAR)_condensed.csv | mysql-$
 	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --local-infile --execute "LOAD DATA LOCAL INFILE '$(lastword $^)' INTO TABLE $(YEAR)_condensed \
 	$(IMPORTFLAGS);"
 
-mysql-$(YEAR): schemas/mysql_$(YEAR).sql | mysql-create
+mysql-$(YEAR)-condensed-load mysql-$(YEAR)-tc-load: mysql-$(YEAR)-%-load: mysql_$(YEAR)_%.sql | mysql-create
 	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) < $<
-	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR) ADD INDEX BBLE (BBLE);"
-
-mysql-$(YEAR)-condensed-load: schemas/mysql_$(YEAR)_condensed.sql | mysql-create
-	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) < $<
-	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR)_condensed ADD INDEX BBLE (BBLE);"
 
 mysql-create:
 	$(MYSQL) $(MYSQLOGIN) $(MYSQLFLAGS) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
@@ -167,11 +170,11 @@ $(YEAR)_condensed.csv: $(YEAR)_condensed.mdb
 #
 # SQL schemas
 #
-schemas/mysql_$(YEAR).sql schemas/sqlite_$(YEAR).sql: schemas/%_$(YEAR).sql: $(YEAR)_TC1.mdb | schemas
 	mdb-schema -T tc1 -N $(YEAR) $< $* | sed -e 's/_tc1//g' > $@
+mysql_$(YEAR)_tc.sql postgres_$(YEAR)_tc.sql sqlite_$(YEAR)_tc.sql: %_$(YEAR)_tc.sql: $(YEAR)_TC1.mdb | schemas
 
-schemas/mysql_$(YEAR)_condensed.sql schemas/sqlite_$(YEAR)_condensed.sql: schemas/%_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
 	mdb-schema -N $(YEAR) $< $* | \
+mysql_$(YEAR)_condensed.sql postgres_$(YEAR)_condensed.sql sqlite_$(YEAR)_condensed.sql: %_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
 	sed -e 's/avroll/condensed/g' | \
 	sed -e 's/Condensed Roll Description/description/g' > $@
 
