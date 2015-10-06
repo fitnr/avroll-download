@@ -170,11 +170,11 @@ $(YEAR)_condensed.csv: $(YEAR)_condensed.mdb
 #
 # SQL schemas
 #
-	mdb-schema -T tc1 -N $(YEAR) $< $* | sed -e 's/_tc1//g' > $@
 mysql_$(YEAR)_tc.sql postgres_$(YEAR)_tc.sql sqlite_$(YEAR)_tc.sql: %_$(YEAR)_tc.sql: $(YEAR)_TC1.mdb | schemas
+	mdb-schema --no-indexes -T tc1 -N $(YEAR) $< $* | sed -e 's/_tc1//g' > $@
 
-	mdb-schema -N $(YEAR) $< $* | \
 mysql_$(YEAR)_condensed.sql postgres_$(YEAR)_condensed.sql sqlite_$(YEAR)_condensed.sql: %_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
+	mdb-schema --no-indexes -N $(YEAR) $< $* | \
 	sed -e 's/avroll/condensed/g' | \
 	sed -e 's/Condensed Roll Description/description/g' > $@
 
