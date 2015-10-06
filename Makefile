@@ -56,13 +56,17 @@ PASSFLAG = -p
 
 MYSQL = mysql
 MYSQLOGIN = --user "$(USER)" $(PASSFLAG)$(PASS)
+
+PSQL = psql
+PSQLOGIN = --username "$(USER)"
+
 SQLITE = sqlite3
 
 IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 	OPTIONALLY ENCLOSED BY '\"' \
 	LINES TERMINATED BY '\n'
 
-.PHONY: all mysql mysql-% sqlite sqlite-% check-% complete condensed 
+.PHONY: all mysql mysql-% postgresql postgresql-% sqlite sqlite-% check-% complete condensed
 
 all: $(YEAR).csv $(YEAR)_condensed.csv
 
@@ -87,6 +91,28 @@ $(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
 
 	$(SQLITE) $(SQLITEFLAGS) $@ < $(lastword $^)
 	$(SQLITE) $(SQLITEFLAGS) $@ "CREATE INDEX IF NOT EXISTS bblec ON $(YEAR)_condensed (BBLE);"
+
+#
+# PostgreSQL
+#
+postgresql: posgresql-complete posgresql-condensed
+
+posgresql-complete: posgresql-$(YEAR)-TC1 posgresql-$(YEAR)-TC2
+
+posgresql-condensed: posgresql-$(YEAR)-condensed
+
+posgresql-$(YEAR)-TC1 posgresql-$(YEAR)-TC2: posgresql-$(YEAR)-%: $(YEAR)_%.csv | posgresql-$(YEAR)-tc-load
+	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) --command "COPY $(YEAR) FROM '$(abspath $<)' DELIMITER ',' CSV QUOTE '\"';"
+
+posgresql-$(YEAR)-condensed: $(YEAR)_description.csv $(YEAR)_condensed.csv | posgresql-$(YEAR)-condensed-load
+	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) --command "COPY $(YEAR)_description FROM '$(abspath $<)' DELIMITER ',' CSV QUOTE '\"';"
+	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) --command "COPY $(YEAR)_condensed FROM '$(abspath $<)' DELIMITER ',' CSV QUOTE '\"';"
+
+posgresql-$(YEAR)-tc-load posgresql-$(YEAR)-condensed-load: posgresql-$(YEAR)-%-load: mysql_$(YEAR)_%.sql | posgresql-create
+	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) < $<
+
+posgresql-create:
+	$(PSQL) $(PSQLOGIN) $(PSQLFLAGS) --execute="CREATE DATABASE $(DATABASE);"  || echo $(DATABASE) probably exists
 
 #
 # MySQL
