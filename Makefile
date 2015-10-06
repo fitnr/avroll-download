@@ -54,8 +54,9 @@ DATABASE = avroll
 
 PASSFLAG = -p
 
-MYSQL = mysql --user="$(USER)" $(PASSFLAG)$(PASS) $(MYSQLFLAGS)
-SQLITE = sqlite3 $(SQLITEFLAGS)
+MYSQL = mysql
+MYSQLOGIN = --user "$(USER)" $(PASSFLAG)$(PASS)
+SQLITE = sqlite3
 
 IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 	OPTIONALLY ENCLOSED BY '\"' \
@@ -71,17 +72,17 @@ all: $(YEAR).csv $(YEAR)_condensed.csv
 sqlite: sqlite-TC1 sqlite-TC2 sqlite-description sqlite-condensed | $(DATABASE).db
 
 sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
-	$(SQLITE) $| -separator , ".import '$<' $(YEAR)"
+	$(SQLITE) $(SQLITEFLAGS) $| -separator , ".import $< $(YEAR)"
 
 sqlite-description sqlite-condensed: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
-	$(SQLITE) $| -separator , ".import '$<' $(YEAR)_$*"
+	$(SQLITE) $(SQLITEFLAGS) $| -separator , ".import $< $(YEAR)_$*"
 
 $(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
-	$(SQLITE) $@ < $<
-	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR) (BBLE);"
+	$(SQLITE) $(SQLITEFLAGS) $@ < $<
+	$(SQLITE) $(SQLITEFLAGS) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR) (BBLE);"
 
-	$(SQLITE) $@ < $(lastword $^)
-	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bblec ON $(YEAR)_condensed (BBLE);"
+	$(SQLITE) $(SQLITEFLAGS) $@ < $(lastword $^)
+	$(SQLITE) $(SQLITEFLAGS) $@ "CREATE INDEX IF NOT EXISTS bblec ON $(YEAR)_condensed (BBLE);"
 
 #
 # MySQL
@@ -93,26 +94,26 @@ condensed: mysql-$(YEAR)-condensed
 mysql: complete condensed
 
 mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YEAR)
-	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --local-infile --execute "LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
 	$(IMPORTFLAGS);"
 
 mysql-$(YEAR)-condensed: $(YEAR)_description.csv $(YEAR)_condensed.csv | mysql-$(YEAR)-condensed-load
-	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR)_description \
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --local-infile --execute "LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR)_description \
 	$(IMPORTFLAGS);"
 
-	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$(lastword $^)' INTO TABLE $(YEAR)_condensed \
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --local-infile --execute "LOAD DATA LOCAL INFILE '$(lastword $^)' INTO TABLE $(YEAR)_condensed \
 	$(IMPORTFLAGS);"
 
 mysql-$(YEAR): schemas/mysql_$(YEAR).sql | mysql-create
-	$(MYSQL) $(DATABASE) < $<
-	$(MYSQL) $(DATABASE) --execute "ALTER TABLE $(YEAR) ADD INDEX BBLE (BBLE);"
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) < $<
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR) ADD INDEX BBLE (BBLE);"
 
 mysql-$(YEAR)-condensed-load: schemas/mysql_$(YEAR)_condensed.sql | mysql-create
-	$(MYSQL) $(DATABASE) < $<
-	$(MYSQL) $(DATABASE) --execute "ALTER TABLE $(YEAR)_condensed ADD INDEX BBLE (BBLE);"
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) < $<
+	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR)_condensed ADD INDEX BBLE (BBLE);"
 
 mysql-create:
-	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
+	$(MYSQL) $(MYSQLOGIN) $(MYSQLFLAGS) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
 
 #
 # CSV
@@ -169,12 +170,12 @@ clean:
 	rm -f description.csv avroll.{zip,mdb,csv} schema.sql
 
 check-sqlite: $(DATABASE).db
-	$(SQLITE) $< 'select * FROM avroll limit 10'
-	$(SQLITE) $< 'select * FROM description'
+	$(SQLITE) $(SQLITEFLAGS) -echo $< 'select * FROM avroll limit 10'
+	$(SQLITE) $(SQLITEFLAGS) -echo $< 'select * FROM description'
 
 check-mysql:
-	$(MYSQL) -D $(DATABASE) -e 'SELECT * FROM avroll LIMIT 10'
-	$(MYSQL) -D $(DATABASE) -e 'SELECT * FROM description'
+	$(MYSQL) -D $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) -e 'SELECT * FROM avroll LIMIT 10'
+	$(MYSQL) -D $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) -e 'SELECT * FROM description'
 
 .PHONY: install
 install:
