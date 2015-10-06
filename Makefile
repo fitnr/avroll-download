@@ -137,12 +137,12 @@ $(YEAR)_condensed.csv: $(YEAR)_condensed.mdb
 # SQL schemas
 #
 schemas/mysql_$(YEAR).sql schemas/sqlite_$(YEAR).sql: schemas/%_$(YEAR).sql: $(YEAR)_TC1.mdb | schemas
-	mdb-schema -T tc1 $< $* | sed -e 's/.tc1./$(YEAR)/g' > $@
+	mdb-schema -T tc1 -N $(YEAR) $< $* | sed -e 's/_tc1//g' > $@
 
 schemas/mysql_$(YEAR)_condensed.sql schemas/sqlite_$(YEAR)_condensed.sql: schemas/%_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
-	mdb-schema $< $* | \
-	sed -e 's/avroll/$(YEAR)_condensed/g' | \
-	sed -e 's/Condensed Roll Description/$(YEAR)_description/g' > $@
+	mdb-schema -N $(YEAR) $< $* | \
+	sed -e 's/avroll/condensed/g' | \
+	sed -e 's/Condensed Roll Description/description/g' > $@
 
 schemas: ; mkdir -p $@
 
