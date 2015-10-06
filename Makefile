@@ -15,18 +15,39 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-FY_2016 = avroll_16
-FY_2015 = avroll_15
-FY_2014 = avroll_14
-FY_2013 = avroll_13
-FY_2012 = avroll_12
-FY_2011 = avroll_11
-FY_2010 = all_10
+FY_2016_TC1 = tc1_16
+FY_2016_TC2 = tc234_16
+FY_2016_condensed = avroll_16
+
+FY_2015_TC1 = tc1_15
+FY_2015_TC2 = tc234_15
+FY_2015_condensed = avroll_15
+
+FY_2014_TC1 = tc1_14
+FY_2014_TC2 = tc234_14
+FY_2014_condensed = avroll_14
+
+FY_2013_TC1 = tc1_13
+FY_2013_TC2 = tc234_13
+FY_2013_condensed = avroll_13
+
+FY_2012_TC1 = tc1_12
+FY_2012_TC2 = tc234_12
+FY_2012_condensed = avroll_12
+
+FY_2011_TC1 = tc1_11
+FY_2011_TC2 = tc234_11
+FY_2011_condensed = avroll_11
+
+FY_2010_TC1 = tc1_10
+FY_2010_TC2 = tc234_10
+FY_2010_condensed = all_10
+
+FY_2009_TC1 = tc1
+FY_2009_TC2 = tc234
 
 BASE = http://www1.nyc.gov/assets/finance/downloads/tar
-YEAR = $(FY_2016)
-
-AVROLL = $(BASE)/$(YEAR).zip
+YEAR = FY_2016
 
 DB = mysql
 DATABASE = avroll
@@ -41,50 +62,86 @@ IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 	LINES TERMINATED BY '\n' \
 	IGNORE 1 LINES
 
-.PHONY: all mysql sqlite check-%
+.PHONY: all mysql mysql-% sqlite sqlite-% check-% complete condensed 
 
-all: $(YEAR).csv
+all: $(YEAR).csv $(YEAR)_condensed.csv
 
-sqlite: $(DATABASE).db
+sqlite: sqlite-TC1 sqlite-TC2 sqlite-description sqlite-condensed | $(DATABASE).db
 
-$(DATABASE).db: schema-sqlite.sql description.csv $(YEAR).csv
+sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
+	tail -n+2 $< | $(SQLITE) $| -separator ',' ".import /dev/stdin $(YEAR)_$*"
+
+sqlite-description sqlite-condensed: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
+	tail -n+2 $< | $(SQLITE) $| -separator ',' ".import /dev/stdin $(YEAR)_$*"
+
+$(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
 	$(SQLITE) $@ < $<
 	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR) (BBLE);"
 
-	tail -n+2 description.csv | $(SQLITE) $@ -separator ',' ".import /dev/stdin description"
+	$(SQLITE) $@ < $(lastword $^)
+	$(SQLITE) $@ "CREATE INDEX IF NOT EXISTS bble ON $(YEAR)_condensed (BBLE);"
 
-	tail -n+2 $(lastword $^) | $(SQLITE) $@ -separator ',' '.import /dev/stdin $(YEAR)'
+complete: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2
 
-mysql: schema-mysql.sql description.csv $(YEAR).csv
-	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
-	$(MYSQL) $(DATABASE) --execute="DROP TABLE IF EXISTS $(YEAR); DROP TABLE IF EXISTS description;"
+condensed: mysql-$(YEAR)-condensed
 
+mysql: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2 mysql-$(YEAR)-condensed
+
+mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YEAR)
+	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
+	$(IMPORTFLAGS);"
+
+mysql-$(YEAR)-condensed: $(YEAR)_description.csv $(YEAR)_condensed.csv
+	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR)_description \
+	$(IMPORTFLAGS);"
+
+	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$(lastword %^)' INTO TABLE $(YEAR)_condensed \
+	$(IMPORTFLAGS);"
+
+mysql-$(YEAR): schemas/mysql_$(YEAR).sql | mysql-create
 	$(MYSQL) $(DATABASE) < $<
 	$(MYSQL) $(DATABASE) --execute "ALTER TABLE $(YEAR) ADD INDEX BBLE (BBLE);"
 
-	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE 'description.csv' INTO TABLE description \
-	$(IMPORTFLAGS);"
+mysql-$(YEAR)-condensed-load: schemas/mysql_$(YEAR)_condensed.sql | mysql-create
+	$(MYSQL) $(DATABASE) < $<
+	$(MYSQL) $(DATABASE) --execute "ALTER TABLE $(YEAR)_condensed ADD INDEX BBLE (BBLE);"
 
-	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$(lastword $<)' INTO TABLE $(YEAR) \
-	$(IMPORTFLAGS);"
+mysql-create:
+	$(MYSQL) --execute="CREATE DATABASE IF NOT EXISTS $(DATABASE);"
 
-description.csv: $(YEAR).mdb
+$(YEAR).csv: $(YEAR)_TC2.csv $(YEAR)_TC1.csv
+	head -n1 $< > $@ 
+	{ $(foreach file,$^,tail -n+2 $(file) ;) } >> $@
+
+$(YEAR)_TC2.csv: $(YEAR)_TC2.mdb
+	mdb-export $(EXPORTFLAGS) $< tc234 > $@
+
+$(YEAR)_TC1.csv: $(YEAR)_TC1.mdb
+	mdb-export $(EXPORTFLAGS) $< tc1 > $@
+
+$(YEAR)_description.csv: $(YEAR)_condensed.mdb
 	mdb-export $(EXPORTFLAGS) $< 'Condensed Roll Description' > $@
 
-# Escape silly trailing slashes in the data set
-$(YEAR).csv: $(YEAR).mdb
-	mdb-export $(EXPORTFLAGS) $< avroll | \
-	sed -e 's/\\/\\\\/g' > $@
+$(YEAR)_condensed.csv: $(YEAR)_condensed.mdb
+	mdb-export $(EXPORTFLAGS) $< avroll > $@
 
-schema-sqlite.sql schema-mysql.sql: schema-%.sql: $(YEAR).mdb
+schemas/mysql_$(YEAR).sql schemas/sqlite_$(YEAR).sql: schemas/%_$(YEAR).sql: $(YEAR)_TC1.mdb | schemas
+	mdb-schema -T tc1 $< $* | sed -e 's/.tc1./$(YEAR)/g' > $@
+
+schemas/mysql_$(YEAR)_condensed.sql schemas/sqlite_$(YEAR)_condensed.sql: schemas/%_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
 	mdb-schema $< $* | \
-	sed -e 's/\(CREATE TABLE\) .avroll./\1 $(YEAR)/g' | \
+	sed -e 's/avroll/$(YEAR)_condensed/g' | \
 	sed -e 's/Condensed Roll Description/description/g' > $@
 
-$(YEAR).mdb: $(YEAR).zip; unzip -p $< '*.mdb' > $@
+schemas: ; mkdir -p $@
 
-.INTERMEDIATE: $(YEAR).zip
-$(YEAR).zip: ; curl --location --progress-bar --output $@ $(AVROLL)
+$(YEAR)_TC1.mdb $(YEAR)_TC2.mdb $(YEAR)_condensed.mdb: $(YEAR)_%.mdb: $(YEAR)_%.zip
+	unzip -p $< '*.mdb' > $@
+
+.INTERMEDIATE: $(YEAR)_TC1.zip $(YEAR)_TC2.zip $(YEAR)_condensed.zip
+
+$(YEAR)_TC1.zip $(YEAR)_TC2.zip $(YEAR)_condensed.zip: $(YEAR)_%.zip:
+	curl --location --progress-bar --output $@ $(BASE)/$($(YEAR)_$*).zip
 
 clean:
 	rm -f $(TARGET)
