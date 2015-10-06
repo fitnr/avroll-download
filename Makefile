@@ -96,11 +96,11 @@ mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YE
 	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
 	$(IMPORTFLAGS);"
 
-mysql-$(YEAR)-condensed: $(YEAR)_description.csv $(YEAR)_condensed.csv
+mysql-$(YEAR)-condensed: $(YEAR)_description.csv $(YEAR)_condensed.csv | mysql-$(YEAR)-condensed-load
 	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR)_description \
 	$(IMPORTFLAGS);"
 
-	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$(lastword %^)' INTO TABLE $(YEAR)_condensed \
+	$(MYSQL) $(DATABASE) --local-infile --execute="LOAD DATA LOCAL INFILE '$(lastword $^)' INTO TABLE $(YEAR)_condensed \
 	$(IMPORTFLAGS);"
 
 mysql-$(YEAR): schemas/mysql_$(YEAR).sql | mysql-create
@@ -117,9 +117,9 @@ mysql-create:
 #
 # CSV
 #
-$(YEAR).csv: $(YEAR)_TC2.csv $(YEAR)_TC1.csv
-	head -n1 $< > $@ 
-	{ $(foreach file,$^,tail -n+2 $(file) ;) } >> $@
+$(YEAR).csv: $(YEAR)_TC2.mdb $(YEAR)_TC2.csv $(YEAR)_TC1.csv
+	mdb-export $< tc234 | head -n1 > $@
+	cat $(filter-out $<,$^) >> $@
 
 $(YEAR)_TC2.csv: $(YEAR)_TC2.mdb
 	mdb-export -H $(EXPORTFLAGS) $< tc234 > $@
@@ -142,7 +142,7 @@ schemas/mysql_$(YEAR).sql schemas/sqlite_$(YEAR).sql: schemas/%_$(YEAR).sql: $(Y
 schemas/mysql_$(YEAR)_condensed.sql schemas/sqlite_$(YEAR)_condensed.sql: schemas/%_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
 	mdb-schema $< $* | \
 	sed -e 's/avroll/$(YEAR)_condensed/g' | \
-	sed -e 's/Condensed Roll Description/description/g' > $@
+	sed -e 's/Condensed Roll Description/$(YEAR)_description/g' > $@
 
 schemas: ; mkdir -p $@
 
