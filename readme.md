@@ -3,7 +3,9 @@ Assessed Value Roll downloader
 
 This Makefile downloads NYC assessed value data and loads it into MySQL or SQLite. It does this with the retro 70s power of `make`.
 
-The NYC Department of Finance makes assessed value data available as a Microsoft Access database. If you're comfortable working with Access, you should [download that file](https://data.cityofnewyork.us/download/rgy2-tti8/application/zip).
+The NYC Department of Finance makes assessed value data available as a Microsoft Access databases. If you're comfortable working with Access, [download the data directly from the city](http://www1.nyc.gov/site/finance/taxes/property-assessment-roll-archives.page).
+
+For metadata and background info about this data, [visit the Dept. of Finance].
 
 See also [nycre](https://github.com/fitnr/nycre), a related project for NYC real estate transaction data.
 
@@ -12,6 +14,10 @@ See also [nycre](https://github.com/fitnr/nycre), a related project for NYC real
 * A Unix-based system (OS X or Linux)
 * [mdbtools](https://github.com/brianb/mdbtools)
 * MySQL v14+ or SQLite v3.7.15+ (optional)
+
+## Limitations
+
+The NYC Dept. of Finance apparently stores dates in `VARCHAR` fields, so dates won't be loaded correctly.
 
 ## Installation
 
