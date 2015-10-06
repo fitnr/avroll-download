@@ -16,6 +16,7 @@ install:
 before_script:
  - sqlite3 -version
  - sqlite3 -help || echo
+ - mdb-schema || echo
  - cat /etc/my.cnf || echo
  - cat /private/etc/my.cnf || echo
 
