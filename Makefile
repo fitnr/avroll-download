@@ -71,10 +71,10 @@ IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 all: complete condensed
 
 complete: $(YEAR).csv
-	@echo *** downloaded $(YEAR).csv
+	@echo ~~~ downloaded $(YEAR).csv ~~~
 
 condensed: $(YEAR)_condensed.csv
-	@echo *** downloaded $(YEAR)_condensed.csv
+	@echo ~~~ downloaded $(YEAR)_condensed.csv ~~~
 
 #
 # SQLite
@@ -82,8 +82,10 @@ condensed: $(YEAR)_condensed.csv
 sqlite: sqlite-complete sqlite-condensed
 
 sqlite-condensed: sqlite-description-load sqlite-condensed-load
+	@echo ~~~ done saving "condensed" data for $(YEAR) to $(DATABASE).db ~~~
 
 sqlite-complete: sqlite-TC1 sqlite-TC2
+	@echo ~~~ done saving "complete" data for $(YEAR) to $(DATABASE).db ~~~
 
 sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
 	$(SQLITE) $(SQLITEFLAGS) $| -separator , ".import $< $(YEAR)"
@@ -104,8 +106,10 @@ $(DATABASE).db: sqlite_$(YEAR)_tc.sql sqlite_$(YEAR)_condensed.sql
 postgresql: posgresql-complete posgresql-condensed
 
 posgresql-complete: posgresql-$(YEAR)-TC1 posgresql-$(YEAR)-TC2
+	@echo ~~~ done saving "condensed" data for $(YEAR) to PostgreSQL $(DATABASE) ~~~
 
 posgresql-condensed: posgresql-$(YEAR)-condensed
+	@echo ~~~ done saving "complete" data for $(YEAR) to PostgreSQL $(DATABASE) ~~~
 
 posgresql-$(YEAR)-TC1 posgresql-$(YEAR)-TC2: posgresql-$(YEAR)-%: $(YEAR)_%.csv | posgresql-$(YEAR)-tc-load
 	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) --command "COPY $(YEAR) FROM '$(abspath $<)' DELIMITER ',' CSV QUOTE '\"';"
@@ -127,9 +131,11 @@ mysql: mysql-complete mysql-condensed
 
 mysql-complete: mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2
 	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR) ADD INDEX BBLE (BBLE);"
+	@echo ~~~ done saving "condensed" data for $(YEAR) to MySQL database $(DATABASE) ~~~
 
 mysql-condensed: mysql-$(YEAR)-condensed
 	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --execute "ALTER TABLE $(YEAR)_condensed ADD INDEX BBLE (BBLE);"
+	@echo ~~~ done saving "complete" data for $(YEAR) to MySQL database $(DATABASE) ~~~
 
 mysql-$(YEAR)-TC1 mysql-$(YEAR)-TC2: mysql-$(YEAR)-%: $(YEAR)_%.csv | mysql-$(YEAR)-tc-load
 	$(MYSQL) $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) --local-infile --execute "LOAD DATA LOCAL INFILE '$<' INTO TABLE $(YEAR) \
