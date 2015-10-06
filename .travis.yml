@@ -24,19 +24,21 @@ install:
 before_script:
  - which $SQLITE
  - $SQLITE -version
+ - cat /etc/my.cnf /etc/mysql/my.cnf /usr/local/mysql/etc/my.cnf ~/.my.cnf || echo
+
+# for loop shortens CSV files to speed up loading tasks
 
 script:
- - make YEAR=FY_2016
+ - make FY_2016_TC2.csv FY_2016_TC1.csv FY_2016_condensed.csv YEAR=FY_2016 
+ - for file in *.csv; do mv $file $file.bak; head -n 10000 $file.bak > $file ; done;
  - make ${DB}_FY_2016_tc.sql
- - tail -n+11 ${DB}_FY_2016_tc.sql
- - make $DB SQLITE=$SQLITE USER=$USER PASSFLAG=
- - make -n $DB YEAR=FY_2012 SQLITE=$SQLITE USER=$USER PASSFLAG=
+ - make $DB YEAR=FY_2016 SQLITE=$SQLITE USER=$USER PASSFLAG=
  - make -n $DB-complete YEAR=FY_2014 SQLITE=$SQLITE USER=$USER PASSFLAG=
  - make -n $DB YEAR=FY_2013 SQLITE=$SQLITE USER=$USER PASSFLAG=
  - make -n $DB-condensed YEAR=FY_2011 SQLITE=$SQLITE USER=$USER PASSFLAG=
 
 after_success:
- - make check-$DB SQLITE=$SQLITE USER=$USER PASSFLAG=
+ - make check-$DB YEAR=FY_2016 SQLITE=$SQLITE USER=$USER PASSFLAG=
 
 matrix:
   allow_failures:
