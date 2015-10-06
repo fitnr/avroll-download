@@ -59,8 +59,7 @@ SQLITE = sqlite3 $(SQLITEFLAGS)
 
 IMPORTFLAGS = FIELDS TERMINATED BY ',' \
 	OPTIONALLY ENCLOSED BY '\"' \
-	LINES TERMINATED BY '\n' \
-	IGNORE 1 LINES
+	LINES TERMINATED BY '\n'
 
 .PHONY: all mysql mysql-% sqlite sqlite-% check-% complete condensed 
 
@@ -69,10 +68,10 @@ all: $(YEAR).csv $(YEAR)_condensed.csv
 sqlite: sqlite-TC1 sqlite-TC2 sqlite-description sqlite-condensed | $(DATABASE).db
 
 sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
-	tail -n+2 $< | $(SQLITE) $| -separator ',' ".import /dev/stdin $(YEAR)_$*"
+	$(SQLITE) $| -separator ',' ".import '$<' $(YEAR)"
 
 sqlite-description sqlite-condensed: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
-	tail -n+2 $< | $(SQLITE) $| -separator ',' ".import /dev/stdin $(YEAR)_$*"
+	$(SQLITE) $| -separator ',' ".import '$<' $(YEAR)_$*"
 
 $(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
 	$(SQLITE) $@ < $<
@@ -114,16 +113,16 @@ $(YEAR).csv: $(YEAR)_TC2.csv $(YEAR)_TC1.csv
 	{ $(foreach file,$^,tail -n+2 $(file) ;) } >> $@
 
 $(YEAR)_TC2.csv: $(YEAR)_TC2.mdb
-	mdb-export $(EXPORTFLAGS) $< tc234 > $@
+	mdb-export -H $(EXPORTFLAGS) $< tc234 > $@
 
 $(YEAR)_TC1.csv: $(YEAR)_TC1.mdb
-	mdb-export $(EXPORTFLAGS) $< tc1 > $@
+	mdb-export -H $(EXPORTFLAGS) $< tc1 > $@
 
 $(YEAR)_description.csv: $(YEAR)_condensed.mdb
-	mdb-export $(EXPORTFLAGS) $< 'Condensed Roll Description' > $@
+	mdb-export -H $(EXPORTFLAGS) $< 'Condensed Roll Description' > $@
 
 $(YEAR)_condensed.csv: $(YEAR)_condensed.mdb
-	mdb-export $(EXPORTFLAGS) $< avroll > $@
+	mdb-export -H $(EXPORTFLAGS) $< avroll > $@
 
 schemas/mysql_$(YEAR).sql schemas/sqlite_$(YEAR).sql: schemas/%_$(YEAR).sql: $(YEAR)_TC1.mdb | schemas
 	mdb-schema -T tc1 $< $* | sed -e 's/.tc1./$(YEAR)/g' > $@
