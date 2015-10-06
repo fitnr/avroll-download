@@ -15,6 +15,9 @@ install:
 
 before_script:
  - sqlite3 -version
+ - sqlite3 -help || echo
+ - cat /etc/my.cnf || echo
+ - cat /private/etc/my.cnf || echo
 
 script:
  - make YEAR=FY_2016
