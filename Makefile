@@ -71,10 +71,10 @@ all: $(YEAR).csv $(YEAR)_condensed.csv
 sqlite: sqlite-TC1 sqlite-TC2 sqlite-description sqlite-condensed | $(DATABASE).db
 
 sqlite-TC1 sqlite-TC2: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
-	$(SQLITE) $| -separator ',' ".import '$<' $(YEAR)"
+	$(SQLITE) $| -separator , ".import '$<' $(YEAR)"
 
 sqlite-description sqlite-condensed: sqlite-%: $(YEAR)_%.csv | $(DATABASE).db
-	$(SQLITE) $| -separator ',' ".import '$<' $(YEAR)_$*"
+	$(SQLITE) $| -separator , ".import '$<' $(YEAR)_$*"
 
 $(DATABASE).db: schemas/sqlite_$(YEAR).sql schemas/sqlite_$(YEAR)_condensed.sql
 	$(SQLITE) $@ < $<
