@@ -18,8 +18,8 @@ before_script:
 
 script:
  - make YEAR=FY_2016
- - make schemas/$DB_FY_2016.sql
- - tail -n+11 schemas/$DB_FY_2016.sql
+ - make schemas/${DB}_FY_2016.sql
+ - tail -n+11 schemas/${DB}_FY_2016.sql
  - make $DB USER=root PASSFLAG=
  - make $DB YEAR=FY_2012 USER=root PASSFLAG=
 
