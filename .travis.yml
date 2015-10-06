@@ -35,6 +35,9 @@ script:
  - make -n $DB YEAR=FY_2013 SQLITE=$SQLITE USER=$USER PASSFLAG=
  - make -n $DB-condensed YEAR=FY_2011 SQLITE=$SQLITE USER=$USER PASSFLAG=
 
+after_success:
+ - make check-$DB SQLITE=$SQLITE USER=$USER PASSFLAG=
+
 matrix:
   allow_failures:
     -

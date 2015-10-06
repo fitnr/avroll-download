@@ -209,12 +209,13 @@ clean:
 	rm -f description.csv avroll.{zip,mdb,csv} schema.sql
 
 check-sqlite: $(DATABASE).db
-	$(SQLITE) $(SQLITEFLAGS) -echo $< 'select * FROM avroll limit 10'
-	$(SQLITE) $(SQLITEFLAGS) -echo $< 'select * FROM description'
+	$(SQLITE) $(SQLITEFLAGS) -echo $< 'select * FROM $(YEAR) limit 10'
+
+check-postgresql:
+	$(PSQL) --dbname $(DATABASE) $(PSQLOGIN) $(PSQLFLAGS) -Atc 'SELECT * FROM $(YEAR) LIMIT 10;'
 
 check-mysql:
-	$(MYSQL) -D $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) -e 'SELECT * FROM avroll LIMIT 10'
-	$(MYSQL) -D $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) -e 'SELECT * FROM description'
+	$(MYSQL) -D $(DATABASE) $(MYSQLOGIN) $(MYSQLFLAGS) -e 'SELECT * FROM $(YEAR) LIMIT 10;'
 
 .PHONY: install
 install:
