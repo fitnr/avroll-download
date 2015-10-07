@@ -118,7 +118,7 @@ posgresql-$(YEAR)-condensed: $(YEAR)_description.csv $(YEAR)_condensed.csv | pos
 	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) --command "COPY $(YEAR)_description FROM '$(abspath $<)' DELIMITER ',' CSV QUOTE '\"';"
 	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) --command "COPY $(YEAR)_condensed FROM '$(abspath $<)' DELIMITER ',' CSV QUOTE '\"';"
 
-posgresql-$(YEAR)-tc-load posgresql-$(YEAR)-condensed-load: posgresql-$(YEAR)-%-load: mysql_$(YEAR)_%.sql | posgresql-create
+posgresql-$(YEAR)-tc-load posgresql-$(YEAR)-condensed-load: posgresql-$(YEAR)-%-load: postgresql_$(YEAR)_%.sql | posgresql-create
 	$(PSQL) $(PSQLOGIN) --dbname $(DATABASE) $(PSQLFLAGS) < $<
 
 posgresql-create:
@@ -176,10 +176,10 @@ $(YEAR)_condensed.csv: $(YEAR)_condensed.mdb
 #
 # SQL schemas
 #
-mysql_$(YEAR)_tc.sql postgres_$(YEAR)_tc.sql sqlite_$(YEAR)_tc.sql: %_$(YEAR)_tc.sql: $(YEAR)_TC1.mdb | schemas
+mysql_$(YEAR)_tc.sql postgresql_$(YEAR)_tc.sql sqlite_$(YEAR)_tc.sql: %_$(YEAR)_tc.sql: $(YEAR)_TC1.mdb | schemas
 	mdb-schema --no-indexes -T tc1 -N $(YEAR) $< $* | sed -e 's/_tc1//g' > $@
 
-mysql_$(YEAR)_condensed.sql postgres_$(YEAR)_condensed.sql sqlite_$(YEAR)_condensed.sql: %_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
+mysql_$(YEAR)_condensed.sql postgresql_$(YEAR)_condensed.sql sqlite_$(YEAR)_condensed.sql: %_$(YEAR)_condensed.sql: $(YEAR)_condensed.mdb | schemas
 	mdb-schema --no-indexes -N $(YEAR) $< $* | \
 	sed -e 's/avroll/condensed/g' | \
 	sed -e 's/Condensed Roll Description/description/g' > $@
