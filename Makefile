@@ -231,3 +231,7 @@ install:
 		sudo make install && \
 		sudo ldconfig \
 	)
+	sqlite3 -version || :
+	psql --version || :
+	mysql --version || :
+	@echo ~~~ installed mdb-tools ~~~
