@@ -23,7 +23,6 @@ install:
 
 before_script:
  - which $SQLITE
- - $SQLITE -version
  - cat /etc/my.cnf /etc/mysql/my.cnf /usr/local/mysql/etc/my.cnf ~/.my.cnf || echo
 
 # for loop shortens CSV files to speed up loading tasks
