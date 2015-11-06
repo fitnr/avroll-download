@@ -32,6 +32,10 @@ This tells `make` to do `mytask`, and set `MYVARIABLE` equal to `"nyc"`. Make wi
 ## Installation
 
 Download or clone this repository and open the folder in your terminal.
+````
+git clone git@github.com:fitnr/avroll-download.git
+cd avroll-download
+````
 
 Next, you'll need to install mdbtools. If you're on Debian Linux or OS X with Homebrew installed run:
 ````
